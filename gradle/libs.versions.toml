@@ -1,0 +1,9 @@
+[plugins]
+android = { id = "com.android.application", version.ref = "android-gradle" }
+kotlin-compose = { id = "org.jetbrains.kotlin.compose", version.ref = "kotlin" }
+
+[versions]
+android-gradle = "8.13.2"
+kotlin = "2.2.21"
+
+[libraries]
