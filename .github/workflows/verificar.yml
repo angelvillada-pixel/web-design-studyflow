@@ -1,0 +1,44 @@
+name: Verificar StudyFlow
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-36"
+      - run: bash gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StudyFlow-APK
+          path: app/build/outputs/apk/debug/*.apk
+      - run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          script: |
+            adb install app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -W -n com.example.studyflow/.MainActivity
+            adb shell uiautomator dump /sdcard/ui.xml
+            adb shell cat /sdcard/ui.xml | grep 'Mis proyectos'
+            adb exec-out screencap -p > studyflow.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Captura-Android
+          path: studyflow.png
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -r backend/requirements.txt
+      - run: |
+          python -m uvicorn backend.main:app &
+          curl --retry 10 --retry-connrefused -fsS http://localhost:8000/api/panel | python -c "import json,sys; assert json.load(sys.stdin)['tareas']"
